@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>mrg_slam_map_provider</name>
+  <version>0.0.0</version>
+  <description>TODO: Package description</description>
+  <maintainer email="serov@uni-bremen.de">Andreas Serov</maintainer>
+  <license>Map Provider Multi-Robot-Graph-SLAM instances (mrg_slam)</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+ 
+  <depend>rclcpp REQUIRED</depend>
+  <depend>rclcpp_components</depend>
+  <depend>std_srvs REQUIRED</depend>
+  <depend>sensor_msgs REQUIRED</depend>
+  <depend>visualization_msgs REQUIRED</depend>
+  <depend>mrg_slam_msgs REQUIRED</depend>
+  <depend>pcl_ros REQUIRED</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
