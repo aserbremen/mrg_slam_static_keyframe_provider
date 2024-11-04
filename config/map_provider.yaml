@@ -7,7 +7,7 @@
     create_own_container: false
     # x-y step size of the grid in which the static map patches are provided
     grid_step_size: 10.0
-    # the default patch_radius = grid_step_size / sqrt(2), which means that the patches' outer circle tangentially diagonally touch the neighboring patches
+    # the default patch_radius = grid_step_size / sqrt(2), which means that the outer circle of a patch tangentially diagonally touch the neighboring patches
     # if set the patch radius will be used instead of the default value
     # patch_radius: 10.0 
     
@@ -17,5 +17,5 @@
     pcd_path: "/data/nextcloud_uni_bremen/documents/vamex/gazebo/marsyard2020_final_samples_100000.pcd"
     # list of robots performing SLAM for providing static map patches in their vicinity, respective callbacks/services will be registered and called
     robot_names: ["atlas", "bestla"]
-    # distance from robot to static map patch which are going to be provided
-    slam_distance: 5.0 
+    # distance from robot to center of the map patch which are going to be provided
+    slam_distance: 15.0 

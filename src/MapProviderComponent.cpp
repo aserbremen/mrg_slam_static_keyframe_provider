@@ -18,6 +18,7 @@ MapProviderComponent::MapProviderComponent( const rclcpp::NodeOptions &options )
 {
     RCLCPP_INFO( get_logger(), "MapProviderComponent has been started." );
 
+    map_frame      = declare_parameter( "map_frame", "map" );
     grid_step_size = static_cast<float>( declare_parameter( "grid_step_size", 15.0 ) );
     // Calculate the patch radius based on the grid step size, so that the circular patches intersect diagonally at one point
     patch_radius          = static_cast<float>( grid_step_size / std::sqrt( 2.0 ) );
@@ -45,9 +46,9 @@ MapProviderComponent::MapProviderComponent( const rclcpp::NodeOptions &options )
         std::bind( &MapProviderComponent::slam_pose_broadcast_callback, this, std::placeholders::_1 ), sub_options );
 
     // Publishers
-    patch_pub    = create_publisher<sensor_msgs::msg::PointCloud2>( "/mrg_slam_map_provider/static_map_patches", 10, pub_options );
+    patch_pub    = create_publisher<sensor_msgs::msg::PointCloud2>( "/mrg_slam_map_provider/map_patches", 10, pub_options );
     full_map_pub = create_publisher<sensor_msgs::msg::PointCloud2>( "/mrg_slam_map_provider/full_map", 10, pub_options );
-    marker_pub   = create_publisher<visualization_msgs::msg::MarkerArray>( "/mrg_slam_map_provider/static_map_markers", 10, pub_options );
+    marker_pub   = create_publisher<visualization_msgs::msg::MarkerArray>( "/mrg_slam_map_provider/map_markers", 10, pub_options );
 
     // Service clients
     for( const auto &robot_name : robot_names ) {
@@ -63,7 +64,7 @@ MapProviderComponent::MapProviderComponent( const rclcpp::NodeOptions &options )
     }
 
     // Service servers, this is mainly used for testing purposes
-    publish_full_map_service_server    = create_service<std_srvs::srv::Trigger>( "/mrg_slam_map_provider/publish_static_map",
+    publish_full_map_service_server    = create_service<std_srvs::srv::Trigger>( "/mrg_slam_map_provider/publish_full_map",
                                                                                  std::bind( &MapProviderComponent::publish_full_map_service,
                                                                                             this, std::placeholders::_1,
                                                                                             std::placeholders::_2 ) );
@@ -93,7 +94,7 @@ MapProviderComponent::create_static_keyframes()
         full_map = std::make_shared<sensor_msgs::msg::PointCloud2>();
     }
     pcl::toROSMsg( *cloud, *full_map );
-    full_map->header.frame_id = "map";
+    full_map->header.frame_id = map_frame;
     full_map->header.stamp    = now();
 
     // create a cloud with z = 0.0
@@ -329,10 +330,10 @@ MapProviderComponent::patch_pub_timer_callback()
     sensor_msgs::msg::PointCloud2 msg;
     pcl::toROSMsg( *patch_in_map, msg );
     // Transform the patch back to the map frame
-    msg.header.frame_id = "map";
+    msg.header.frame_id = map_frame;
     msg.header.stamp    = now();
     RCLCPP_INFO_STREAM( get_logger(), "Publishing patch " << patch_index + 1 << "/" << static_keyframes.size() << " with " << patch->size()
-                                                          << " points" );
+                                                          << " points in frame_id " << msg.header.frame_id );
     patch_pub->publish( msg );
 
     patch_index++;
@@ -354,7 +355,7 @@ MapProviderComponent::publish_center_points()
     int                                  counter = 0;
     for( const auto &static_keyframe : static_keyframes ) {
         visualization_msgs::msg::Marker marker;
-        marker.header.frame_id    = "map";
+        marker.header.frame_id    = map_frame;
         marker.header.stamp       = now();
         marker.ns                 = "patch_centers";
         marker.id                 = counter++;
@@ -378,7 +379,7 @@ MapProviderComponent::publish_center_points()
     }
     // add a fat Sphere marker at the origin
     visualization_msgs::msg::Marker origin_marker;
-    origin_marker.header.frame_id    = "map";
+    origin_marker.header.frame_id    = map_frame;
     origin_marker.header.stamp       = now();
     origin_marker.ns                 = "patch_centers";
     origin_marker.id                 = counter++;

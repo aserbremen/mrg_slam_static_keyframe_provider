@@ -99,6 +99,7 @@ private:
     std::vector<StaticKeyframe::Ptr> static_keyframes;
 
     // ROS2 params
+    std::string              map_frame;
     float                    grid_step_size;
     float                    patch_radius;
     std::string              pcd_path;
