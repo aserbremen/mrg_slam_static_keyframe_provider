@@ -8,8 +8,8 @@ import yaml
 
 
 def generate_launch_description():
-    share_dir = get_package_share_directory('mrg_slam_map_provider')
-    config_file = os.path.join(share_dir, 'config', 'map_provider.yaml')
+    share_dir = get_package_share_directory('mrg_slam_static_keyframe_provider')
+    config_file = os.path.join(share_dir, 'config', 'static_keyframe_provider.yaml')
     with open(config_file, 'r') as f:
         config = yaml.safe_load(f)['/**']['ros__parameters']
 
@@ -22,19 +22,19 @@ def generate_launch_description():
     if container_name == '':
         return LaunchDescription([
             Node(
-                package='mrg_slam_map_provider',
-                executable='map_provider_node',
-                name='mrg_slam_map_provider',
+                package='mrg_slam_static_keyframe_provider',
+                executable='static_keyframe_provider_node',
+                name='static_keyframe_provider',
                 output='screen',
                 parameters=[config]
             )
         ])
 
-    # Create the mrg_slam_map_provider component
-    mrg_slam_map_provider_component = ComposableNode(
-        package='mrg_slam_map_provider',
-        plugin='map_provider::MapProviderComponent',
-        name='mrg_slam_map_provider',
+    # Create the mrg_slam_static_keyframe_provider component
+    mrg_slam_static_keyframe_provider_component = ComposableNode(
+        package='mrg_slam_static_keyframe_provider',
+        plugin='static_keyframe_provider::MapProviderComponent',
+        name='static_keyframe_provider',
         namespace='',
         parameters=[config],
         extra_arguments=[{'use_intra_process_comms': True}]
@@ -45,7 +45,7 @@ def generate_launch_description():
             namespace='',
             package='rclcpp_components',
             executable='component_container',
-            composable_node_descriptions=[mrg_slam_map_provider_component],
+            composable_node_descriptions=[mrg_slam_static_keyframe_provider_component],
             output='screen',
             parameters=[config]
         )
@@ -59,7 +59,7 @@ def generate_launch_description():
             parameters=[config]
         )
         load_composable_nodes = LoadComposableNodes(
-            composable_node_descriptions=[mrg_slam_map_provider_component],
+            composable_node_descriptions=[mrg_slam_static_keyframe_provider_component],
             target_container=container_name
         )
 

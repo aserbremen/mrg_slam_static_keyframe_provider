@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(mrg_slam_map_provider)
+project(mrg_slam_static_keyframe_provider)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -26,10 +26,10 @@ find_package(pcl_ros REQUIRED)
 include_directories(include)
 
 # map_provider component
-add_library(map_provider_component SHARED
-  src/MapProviderComponent.cpp
+add_library(static_keyframe_provider_component SHARED
+  src/StaticKeyFrameProviderComponent.cpp
 )
-ament_target_dependencies(map_provider_component 
+ament_target_dependencies(static_keyframe_provider_component 
   rclcpp
   rclcpp_components
   std_srvs
@@ -38,23 +38,23 @@ ament_target_dependencies(map_provider_component
   mrg_slam_msgs
   pcl_ros
 )
-rclcpp_components_register_nodes(map_provider_component "mrg_slam_map_provider::MapProviderComponent")
+rclcpp_components_register_nodes(static_keyframe_provider_component "mrg_slam::StaticKeyFrameProviderComponent")
 
-# Add the map_provider executable which is linked to the map_provider_component library
-add_executable(map_provider_node src/MapProviderNode.cpp)
-target_link_libraries(map_provider_node map_provider_component)
+# Add the map_provider executable which is linked to the static_keyframe_provider_component library
+add_executable(static_keyframe_provider_node src/StaticKeyFrameProviderNode.cpp)
+target_link_libraries(static_keyframe_provider_node static_keyframe_provider_component)
 
-# Install the map_provider_component library
+# Install the static_keyframe_provider_component library
 install(TARGETS
-  map_provider_component
+  static_keyframe_provider_component
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
 
-# Install the map_provider_node executable
+# Install the static_keyframe_provider_node executable
 install(TARGETS
-  map_provider_node
+  static_keyframe_provider_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -18,12 +18,12 @@
 // mrg_slam_msgs
 #include <mrg_slam_msgs/msg/key_frame_ros.hpp>
 #include <mrg_slam_msgs/msg/pose_with_name.hpp>
-#include <mrg_slam_msgs/srv/add_static_map.hpp>
+#include <mrg_slam_msgs/srv/add_static_key_frames.hpp>
 #include <mrg_slam_msgs/srv/get_graph_gids.hpp>
 
-namespace mrg_slam_map_provider {
+namespace mrg_slam {
 
-class MapProviderComponent : public rclcpp::Node {
+class StaticKeyFrameProviderComponent : public rclcpp::Node {
 public:
     typedef pcl::PointXYZI PointT;
     struct StaticKeyframe {
@@ -36,7 +36,7 @@ public:
         std::string                              uuid_str;
     };
 
-    MapProviderComponent( const rclcpp::NodeOptions &options );
+    StaticKeyFrameProviderComponent( const rclcpp::NodeOptions &options );
 
     /**
      * @brief Creates a vector of circular static keyframes with a given grid step size and patch radius
@@ -57,8 +57,8 @@ public:
      * @param robot_name
      * @return true if the service call was successful
      */
-    bool add_static_map_service_call( mrg_slam_msgs::msg::PoseWithName::ConstSharedPtr slam_pose_msg,
-                                      const std::vector<StaticKeyframe::Ptr>          &static_keyframes_to_add );
+    bool add_static_keyframes_service_call( mrg_slam_msgs::msg::PoseWithName::ConstSharedPtr slam_pose_msg,
+                                            const std::vector<StaticKeyframe::Ptr>          &static_keyframes_to_add );
 
     /**
      * @brief Broadcast callback for the slam poses of the multi-robot graph SLAM. Static map patches will be supplied dependent on the
@@ -69,21 +69,20 @@ public:
     void slam_pose_broadcast_callback( mrg_slam_msgs::msg::PoseWithName::ConstSharedPtr slam_pose_msg );
 
     /**
-     * @brief Trigger service callback for publishing the static map
+     * @brief Trigger service callback for publishing the full map
      *
      * @param req
      * @param res
      */
-    void publish_full_map_service( std_srvs::srv::Trigger::Request::ConstSharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res );
+    void publish_map_service( std_srvs::srv::Trigger::Request::ConstSharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res );
 
     /**
-     * @brief Trigger service callback for publishing the static map patches timer based
+     * @brief Trigger service callback for publishing the static keyframes timer based
      *
      * @param req
      * @param res
      */
-    void publish_map_patches_service( std_srvs::srv::Trigger::Request::ConstSharedPtr req,
-                                      std_srvs::srv::Trigger::Response::SharedPtr     res );
+    void publish_keyframes_service( std_srvs::srv::Trigger::Request::ConstSharedPtr req, std_srvs::srv::Trigger::Response::SharedPtr res );
 
     /**
      * @brief Timer callback for publishing the patches
@@ -115,17 +114,17 @@ private:
     rclcpp::Subscription<mrg_slam_msgs::msg::PoseWithName>::SharedPtr slam_pose_broadcast_sub;
 
     // ROS2 publishers
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr        patch_pub;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr        full_map_pub;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr        keyframes_pub;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr        map_pub;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub;
 
     // ROS2 service clients
-    std::unordered_map<std::string, rclcpp::Client<mrg_slam_msgs::srv::GetGraphGids>::SharedPtr> get_graph_gids_clients;
-    std::unordered_map<std::string, rclcpp::Client<mrg_slam_msgs::srv::AddStaticMap>::SharedPtr> add_static_map_clients;
+    std::unordered_map<std::string, rclcpp::Client<mrg_slam_msgs::srv::GetGraphGids>::SharedPtr>       get_graph_gids_clients;
+    std::unordered_map<std::string, rclcpp::Client<mrg_slam_msgs::srv::AddStaticKeyFrames>::SharedPtr> add_static_keyframes_clients;
 
     // ROS2 service servers
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr publish_full_map_service_server;
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr publish_map_patches_service_server;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr publish_map_service_server;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr publish_keyframes_service_server;
 
     // ROS2 callback groups
     rclcpp::CallbackGroup::SharedPtr reentrant_callback_group1;
@@ -133,8 +132,8 @@ private:
 
     // More parameters
     size_t                       patch_index;
-    rclcpp::TimerBase::SharedPtr patch_pub_timer;
+    rclcpp::TimerBase::SharedPtr keyframes_pub_timer;
     double                       timer_frequency;
 };
 
-}  // namespace mrg_slam_map_provider
+}  // namespace mrg_slam

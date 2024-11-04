@@ -8,15 +8,15 @@
 // boost
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
-// mrg_slam_map_provider
-#include <mrg_slam_map_provider/MapProviderComponent.hpp>
+// mrg_slam_static_keyframe_provider
+#include <mrg_slam_static_keyframe_provider/StaticKeyFrameProviderComponent.hpp>
 
-namespace mrg_slam_map_provider {
+namespace mrg_slam {
 
-MapProviderComponent::MapProviderComponent( const rclcpp::NodeOptions &options ) :
-    Node( "mrg_slam_map_provider", options ), patch_index( 0 )
+StaticKeyFrameProviderComponent::StaticKeyFrameProviderComponent( const rclcpp::NodeOptions &options ) :
+    Node( "static_keyframe_provider", options ), patch_index( 0 )
 {
-    RCLCPP_INFO( get_logger(), "MapProviderComponent has been started." );
+    RCLCPP_INFO( get_logger(), "StaticKeyFrameProviderComponent has been started." );
 
     map_frame      = declare_parameter( "map_frame", "map" );
     grid_step_size = static_cast<float>( declare_parameter( "grid_step_size", 15.0 ) );
@@ -31,7 +31,7 @@ MapProviderComponent::MapProviderComponent( const rclcpp::NodeOptions &options )
     // Callback groups
     // for slam_pose_broadcast_sub + mrg_slam service clients
     reentrant_callback_group1 = create_callback_group( rclcpp::CallbackGroupType::Reentrant );
-    // for patch_pub_timer + patch_pub + full_map_pub + marker_pub
+    // for keyframes_pub_timer + keyframes_pub + map_pub + marker_pub
     reentrant_callback_group2 = create_callback_group( rclcpp::CallbackGroupType::Reentrant );
     rclcpp::PublisherOptions pub_options;
     pub_options.callback_group = reentrant_callback_group2;
@@ -43,12 +43,12 @@ MapProviderComponent::MapProviderComponent( const rclcpp::NodeOptions &options )
     sub_options.callback_group = reentrant_callback_group1;
     slam_pose_broadcast_sub    = create_subscription<mrg_slam_msgs::msg::PoseWithName>(
         "/mrg_slam/slam_pose_broadcast", rclcpp::QoS( 100 ),
-        std::bind( &MapProviderComponent::slam_pose_broadcast_callback, this, std::placeholders::_1 ), sub_options );
+        std::bind( &StaticKeyFrameProviderComponent::slam_pose_broadcast_callback, this, std::placeholders::_1 ), sub_options );
 
     // Publishers
-    patch_pub    = create_publisher<sensor_msgs::msg::PointCloud2>( "/mrg_slam_map_provider/map_patches", 10, pub_options );
-    full_map_pub = create_publisher<sensor_msgs::msg::PointCloud2>( "/mrg_slam_map_provider/full_map", 10, pub_options );
-    marker_pub   = create_publisher<visualization_msgs::msg::MarkerArray>( "/mrg_slam_map_provider/map_markers", 10, pub_options );
+    keyframes_pub = create_publisher<sensor_msgs::msg::PointCloud2>( "/static_keyframe_provider/keyframes", 10, pub_options );
+    map_pub       = create_publisher<sensor_msgs::msg::PointCloud2>( "/static_keyframe_provider/map", 10, pub_options );
+    marker_pub    = create_publisher<visualization_msgs::msg::MarkerArray>( "/static_keyframe_provider/markers", 10, pub_options );
 
     // Service clients
     for( const auto &robot_name : robot_names ) {
@@ -57,31 +57,31 @@ MapProviderComponent::MapProviderComponent( const rclcpp::NodeOptions &options )
                                                                                                    rmw_qos_profile_services_default,
                                                                                                    reentrant_callback_group1 );
 
-        std::string add_static_map_service_name = "/" + robot_name + "/mrg_slam/add_static_map";
-        add_static_map_clients[robot_name]      = create_client<mrg_slam_msgs::srv::AddStaticMap>( add_static_map_service_name,
-                                                                                                   rmw_qos_profile_services_default,
-                                                                                                   reentrant_callback_group1 );
+        std::string add_static_keyframes_service_name = "/" + robot_name + "/mrg_slam/add_static_keyframes";
+        add_static_keyframes_clients[robot_name] = create_client<mrg_slam_msgs::srv::AddStaticKeyFrames>( add_static_keyframes_service_name,
+                                                                                                          rmw_qos_profile_services_default,
+                                                                                                          reentrant_callback_group1 );
     }
 
     // Service servers, this is mainly used for testing purposes
-    publish_full_map_service_server    = create_service<std_srvs::srv::Trigger>( "/mrg_slam_map_provider/publish_full_map",
-                                                                                 std::bind( &MapProviderComponent::publish_full_map_service,
-                                                                                            this, std::placeholders::_1,
-                                                                                            std::placeholders::_2 ) );
-    publish_map_patches_service_server = create_service<std_srvs::srv::Trigger>(
-        "/mrg_slam_map_provider/publish_map_patches",
-        std::bind( &MapProviderComponent::publish_map_patches_service, this, std::placeholders::_1, std::placeholders::_2 ) );
+    publish_map_service_server       = create_service<std_srvs::srv::Trigger>( "/static_keyframe_provider/publish_map",
+                                                                               std::bind( &StaticKeyFrameProviderComponent::publish_map_service,
+                                                                                          this, std::placeholders::_1, std::placeholders::_2 ) );
+    publish_keyframes_service_server = create_service<std_srvs::srv::Trigger>(
+        "/static_keyframe_provider/publish_keyframes",
+        std::bind( &StaticKeyFrameProviderComponent::publish_keyframes_service, this, std::placeholders::_1, std::placeholders::_2 ) );
 
     create_static_keyframes();
 
     // Define the timer for publishing patches, start it only with the publish_static_map service call
-    patch_pub_timer = create_wall_timer( std::chrono::milliseconds( static_cast<int64_t>( 1000 / timer_frequency ) ),
-                                         std::bind( &MapProviderComponent::patch_pub_timer_callback, this ), reentrant_callback_group2 );
-    patch_pub_timer->cancel();
+    keyframes_pub_timer = create_wall_timer( std::chrono::milliseconds( static_cast<int64_t>( 1000 / timer_frequency ) ),
+                                             std::bind( &StaticKeyFrameProviderComponent::patch_pub_timer_callback, this ),
+                                             reentrant_callback_group2 );
+    keyframes_pub_timer->cancel();
 }
 
 void
-MapProviderComponent::create_static_keyframes()
+StaticKeyFrameProviderComponent::create_static_keyframes()
 {
     pcl::PointCloud<PointT>::Ptr cloud( new pcl::PointCloud<PointT> );
     if( pcl::io::loadPCDFile<PointT>( pcd_path, *cloud ) == -1 ) {
@@ -168,7 +168,7 @@ MapProviderComponent::create_static_keyframes()
 }
 
 void
-MapProviderComponent::slam_pose_broadcast_callback( mrg_slam_msgs::msg::PoseWithName::ConstSharedPtr slam_pose_msg )
+StaticKeyFrameProviderComponent::slam_pose_broadcast_callback( mrg_slam_msgs::msg::PoseWithName::ConstSharedPtr slam_pose_msg )
 {
     mrg_slam_msgs::srv::GetGraphGids::Response::SharedPtr gids   = get_graph_gids_service_call( slam_pose_msg->robot_name );
     auto                                                  logger = rclcpp::get_logger( "slam_pose_broadcast_callback" );
@@ -197,7 +197,7 @@ MapProviderComponent::slam_pose_broadcast_callback( mrg_slam_msgs::msg::PoseWith
         return;
     }
 
-    if( add_static_map_service_call( slam_pose_msg, static_keyframes_to_add ) ) {
+    if( add_static_keyframes_service_call( slam_pose_msg, static_keyframes_to_add ) ) {
         RCLCPP_INFO_STREAM( logger, "Successfully added static map to robot " << slam_pose_msg->robot_name );
     } else {
         RCLCPP_ERROR_STREAM( logger, "Failed to add static map to robot " << slam_pose_msg->robot_name );
@@ -205,7 +205,7 @@ MapProviderComponent::slam_pose_broadcast_callback( mrg_slam_msgs::msg::PoseWith
 }
 
 mrg_slam_msgs::srv::GetGraphGids::Response::SharedPtr
-MapProviderComponent::get_graph_gids_service_call( const std::string &robot_name )
+StaticKeyFrameProviderComponent::get_graph_gids_service_call( const std::string &robot_name )
 {
     // Check if the service is available
     while( !get_graph_gids_clients[robot_name]->wait_for_service( std::chrono::seconds( 2 ) ) ) {
@@ -233,16 +233,16 @@ MapProviderComponent::get_graph_gids_service_call( const std::string &robot_name
 }
 
 bool
-MapProviderComponent::add_static_map_service_call( mrg_slam_msgs::msg::PoseWithName::ConstSharedPtr slam_pose_msg,
-                                                   const std::vector<StaticKeyframe::Ptr>          &static_keyframes_to_add )
+StaticKeyFrameProviderComponent::add_static_keyframes_service_call( mrg_slam_msgs::msg::PoseWithName::ConstSharedPtr slam_pose_msg,
+                                                                    const std::vector<StaticKeyframe::Ptr> &static_keyframes_to_add )
 {
     // Check if the service is available
-    while( !add_static_map_clients[slam_pose_msg->robot_name]->wait_for_service( std::chrono::seconds( 2 ) ) ) {
+    while( !add_static_keyframes_clients[slam_pose_msg->robot_name]->wait_for_service( std::chrono::seconds( 2 ) ) ) {
         if( !rclcpp::ok() ) {
             return false;
         }
         RCLCPP_WARN_STREAM_THROTTLE( get_logger(), *get_clock(), 1000,
-                                     "Waiting for service " << add_static_map_clients[slam_pose_msg->robot_name]->get_service_name()
+                                     "Waiting for service " << add_static_keyframes_clients[slam_pose_msg->robot_name]->get_service_name()
                                                             << " to appear..." );
     }
 
@@ -260,7 +260,7 @@ MapProviderComponent::add_static_map_service_call( mrg_slam_msgs::msg::PoseWithN
         mrg_slam_msgs::msg::KeyFrameRos kf_ros;
         kf_ros.uuid_str        = kf->uuid_str;
         kf_ros.stamp           = now();
-        kf_ros.robot_name      = "mrg_slam_map_provider";
+        kf_ros.robot_name      = "static_keyframe_provider";
         kf_ros.odom_counter    = -1;
         kf_ros.first_keyframe  = false;
         kf_ros.static_keyframe = true;
@@ -270,10 +270,10 @@ MapProviderComponent::add_static_map_service_call( mrg_slam_msgs::msg::PoseWithN
         static_keyframes_ros.push_back( kf_ros );
     }
 
-    mrg_slam_msgs::srv::AddStaticMap::Request::SharedPtr req = std::make_shared<mrg_slam_msgs::srv::AddStaticMap::Request>();
-    req->keyframes                                           = std::move( static_keyframes_ros );
+    mrg_slam_msgs::srv::AddStaticKeyFrames::Request::SharedPtr req = std::make_shared<mrg_slam_msgs::srv::AddStaticKeyFrames::Request>();
+    req->keyframes                                                 = std::move( static_keyframes_ros );
 
-    auto result_future = add_static_map_clients[slam_pose_msg->robot_name]->async_send_request( req );
+    auto result_future = add_static_keyframes_clients[slam_pose_msg->robot_name]->async_send_request( req );
 
     std::future_status status = result_future.wait_for( std::chrono::seconds( 20 ) );
     if( status == std::future_status::timeout ) {
@@ -287,36 +287,36 @@ MapProviderComponent::add_static_map_service_call( mrg_slam_msgs::msg::PoseWithN
 }
 
 void
-MapProviderComponent::publish_full_map_service( std_srvs::srv::Trigger::Request::ConstSharedPtr /* req */,
-                                                std_srvs::srv::Trigger::Response::SharedPtr res )
+StaticKeyFrameProviderComponent::publish_map_service( std_srvs::srv::Trigger::Request::ConstSharedPtr /* req */,
+                                                      std_srvs::srv::Trigger::Response::SharedPtr res )
 {
-    RCLCPP_INFO_STREAM( get_logger(), "Publishing full map on " << full_map_pub->get_topic_name() );
+    RCLCPP_INFO_STREAM( get_logger(), "Publishing full map on " << map_pub->get_topic_name() );
 
     // Publish the full map
-    full_map_pub->publish( *full_map );
+    map_pub->publish( *full_map );
 
     res->success = true;
 }
 
 void
-MapProviderComponent::publish_map_patches_service( std_srvs::srv::Trigger::Request::ConstSharedPtr /* req */,
-                                                   std_srvs::srv::Trigger::Response::SharedPtr res )
+StaticKeyFrameProviderComponent::publish_keyframes_service( std_srvs::srv::Trigger::Request::ConstSharedPtr /* req */,
+                                                            std_srvs::srv::Trigger::Response::SharedPtr res )
 {
-    RCLCPP_INFO_STREAM( get_logger(), "Publishing map patches on topic " << patch_pub->get_topic_name() );
+    RCLCPP_INFO_STREAM( get_logger(), "Publishing map patches on topic " << keyframes_pub->get_topic_name() );
     RCLCPP_INFO_STREAM( get_logger(), "Publishing patch center points and origin on topic " << marker_pub->get_topic_name() );
 
     // Publish the center points
     publish_center_points();
-    // Publish the patches by starting the patch_pub_timer
-    patch_pub_timer->reset();
+    // Publish the patches by starting the keyframes_pub_timer
+    keyframes_pub_timer->reset();
 
     res->success = true;
 }
 
 void
-MapProviderComponent::patch_pub_timer_callback()
+StaticKeyFrameProviderComponent::patch_pub_timer_callback()
 {
-    patch_pub_timer->cancel();
+    keyframes_pub_timer->cancel();
 
     auto                         patch = static_keyframes[patch_index]->patch;
     pcl::PointCloud<PointT>::Ptr patch_in_map( new pcl::PointCloud<PointT> );
@@ -334,22 +334,22 @@ MapProviderComponent::patch_pub_timer_callback()
     msg.header.stamp    = now();
     RCLCPP_INFO_STREAM( get_logger(), "Publishing patch " << patch_index + 1 << "/" << static_keyframes.size() << " with " << patch->size()
                                                           << " points in frame_id " << msg.header.frame_id );
-    patch_pub->publish( msg );
+    keyframes_pub->publish( msg );
 
     patch_index++;
 
     // Cancel the timer if all patches have been published once
     if( patch_index >= static_keyframes.size() ) {
         patch_index = 0;
-        patch_pub_timer->cancel();
+        keyframes_pub_timer->cancel();
         return;
     }
 
-    patch_pub_timer->reset();
+    keyframes_pub_timer->reset();
 }
 
 void
-MapProviderComponent::publish_center_points()
+StaticKeyFrameProviderComponent::publish_center_points()
 {
     visualization_msgs::msg::MarkerArray markers;
     int                                  counter = 0;
@@ -405,7 +405,7 @@ MapProviderComponent::publish_center_points()
     RCLCPP_INFO_STREAM( get_logger(), "Published " << static_keyframes.size() << " center points and origin" );
 }
 
-}  // namespace mrg_slam_map_provider
+}  // namespace mrg_slam
 
 #include <rclcpp_components/register_node_macro.hpp>
-RCLCPP_COMPONENTS_REGISTER_NODE( mrg_slam_map_provider::MapProviderComponent )
+RCLCPP_COMPONENTS_REGISTER_NODE( mrg_slam::StaticKeyFrameProviderComponent )
