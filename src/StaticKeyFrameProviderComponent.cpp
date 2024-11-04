@@ -10,8 +10,18 @@
 #include <boost/uuid/uuid_io.hpp>
 // mrg_slam_static_keyframe_provider
 #include <mrg_slam_static_keyframe_provider/StaticKeyFrameProviderComponent.hpp>
+//
+#include <openssl/sha.h>
+#include <uuid/uuid.h>
+
+#include <iomanip>
+#include <sstream>
 
 namespace mrg_slam {
+
+// Define your own namespace UUID
+const uuid_t UUID_NAMESPACE = { 0x6b, 0xa7, 0xb8, 0x10, 0x9d, 0xad, 0x11, 0xd1, 0x80, 0xb4, 0x00, 0xc0, 0x4f, 0xd4, 0x30, 0xc8 };
+
 
 StaticKeyFrameProviderComponent::StaticKeyFrameProviderComponent( const rclcpp::NodeOptions &options ) :
     Node( "static_keyframe_provider", options ), patch_index( 0 )
@@ -117,8 +127,8 @@ StaticKeyFrameProviderComponent::create_static_keyframes()
     for( float x = min_pt.x; x <= max_pt.x; x += grid_step_size ) {
         for( float y = min_pt.y; y <= max_pt.y; y += grid_step_size ) {
             StaticKeyframe::Ptr static_keyframe = std::make_shared<StaticKeyframe>();
-            static_keyframe->uuid               = uuid_generator();
-            static_keyframe->uuid_str           = boost::uuids::to_string( static_keyframe->uuid );
+            // static_keyframe->uuid               = uuid_generator();
+            // static_keyframe->uuid_str           = boost::uuids::to_string( static_keyframe->uuid );
 
             PointT center( x, y, 0 );  // Grid center for current patch
 
@@ -151,13 +161,32 @@ StaticKeyFrameProviderComponent::create_static_keyframes()
                     point.z -= center.z;
                 }
 
-                RCLCPP_INFO_STREAM( get_logger(),
-                                    "Created patch at center (" << x << ", " << y << ") with " << patch->size() << " points" );
+                std::stringstream ss;
+                ss << std::fixed << std::setprecision( 6 ) << center.x << "," << center.y << "," << patch->size();
+                std::string deterministic_uuid_str = ss.str();
+
+                // Compute SHA-1 hash of the grid center string
+                unsigned char hash[SHA_DIGEST_LENGTH];
+                SHA1( reinterpret_cast<const unsigned char *>( deterministic_uuid_str.c_str() ), deterministic_uuid_str.size(), hash );
+
+                // Convert the hash to a UUID
+                uuid_t uuid;
+                uuid_generate_md5( uuid, UUID_NAMESPACE, reinterpret_cast<const char *>( hash ), SHA_DIGEST_LENGTH );
+
+                // Convert UUID to string
+                char uuid_str[37];
+                uuid_unparse( uuid, uuid_str );
+
+                // Use the UUID for the keyframe
+                static_keyframe->uuid_str = std::string( uuid_str );
+
+                RCLCPP_INFO_STREAM( get_logger(), "Created kf " << static_keyframe->uuid_str << " at center (" << x << ", " << y
+                                                                << ") with " << patch->size() << " points and uuid_str " );
                 static_keyframe->patch = patch;
 
                 sensor_msgs::msg::PointCloud2::SharedPtr patch_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
                 pcl::toROSMsg( *patch, *patch_msg );
-                patch_msg->header.frame_id = "patch_center_point";  // cannot be visualized in rviz, for later usage in mrg_slam
+                patch_msg->header.frame_id = "keyframe_point";  // cannot be visualized in rviz, for later usage in mrg_slam
                 patch_msg->header.stamp    = now();
                 static_keyframe->patch_msg = patch_msg;
 

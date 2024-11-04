@@ -18,4 +18,4 @@
     # list of robots performing SLAM for providing static map patches in their vicinity, respective callbacks/services will be registered and called
     robot_names: ["atlas", "bestla"]
     # distance from robot to center of the map patch which are going to be provided
-    slam_distance: 15.0 
+    slam_distance: 5.0 

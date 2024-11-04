@@ -22,6 +22,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(mrg_slam_msgs REQUIRED)
 find_package(pcl_ros REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 include_directories(include)
 
@@ -37,6 +38,10 @@ ament_target_dependencies(static_keyframe_provider_component
   visualization_msgs
   mrg_slam_msgs
   pcl_ros
+)
+target_link_libraries(static_keyframe_provider_component
+  ${OPENSSL_LIBRARIES}
+  uuid
 )
 rclcpp_components_register_nodes(static_keyframe_provider_component "mrg_slam::StaticKeyFrameProviderComponent")
 
