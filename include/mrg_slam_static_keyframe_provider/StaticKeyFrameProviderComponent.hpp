@@ -44,6 +44,15 @@ public:
     void create_static_keyframes();
 
     /**
+     * @brief Loads a point cloud from a given path
+     *
+     * @param pcd_path path to the point cloud, if the path is relative, the pcd file will be searched in this package share directory. If
+     * the path is absolute, the file will be loaded from the absolute path.
+     * @return pcl::PointCloud<PointT>::Ptr Shared pointer to the point cloud
+     */
+    pcl::PointCloud<PointT>::Ptr load_pcd( const std::string &pcd_path );
+
+    /**
      * @brief Generates a reproducible UUID from deterministic keyframe information
      *
      * @param x x-coordinate of the keyframe center

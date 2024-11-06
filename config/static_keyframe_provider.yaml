@@ -1,9 +1,9 @@
 /**:
   ros__parameters:
     use_sim_time: true
-    # when this is set to "", the static_map_provider will be a standalone node, otherwise it will be added to the specified container
+    # when this is set to "", the static_keyframe_provider will be a standalone node, otherwise it will be added to the specified container
     component_container_name: ""
-    # when this is set to false, the static_map_provider_node will be added to an existing container  
+    # when this is set to false, the static_keyframe_provider_node will be added to an existing container  
     create_own_container: false
     # x-y step size of the grid in which the static map patches are provided
     grid_step_size: 10.0
@@ -11,11 +11,13 @@
     # set this value yourself if you want to have a different patch_radius
     # patch_radius: 10.0 
     
-    # pcd_path: "/data/uni_bremen_nextcloud/documents/vamex/langenaltheim/la_mission/langenaltheim_mission_terrain/meshes/la_mission_samples_1000000_intesity.pcd"
-    pcd_path: "/data/nextcloud_uni_bremen/documents/vamex/gazebo/marsyard2020_final_samples_100000.pcd"
+    # path to the pcd file which contains the static map
+    # if the path is absolute (starting with /), the file will be loaded from the specified path
+    # if the path is relative (starting without /), the file will be loaded from the install directory of the mrg_slam_static_keyframe_provider package
+    pcd_path: "maps/marsyard2020_100000_points.pcd"
     # list of robots performing SLAM for providing static map patches in their vicinity, respective callbacks/services will be registered and called
     robot_names: ["atlas", "bestla"]
-    # distance from robot to center of the map patch which are going to be provided
+    # distance from robot to center of the static keyframe which are going to be provided
     slam_distance: 5.0 
 
     # the frequency at which the static map provider publishes the static map patches if service is called

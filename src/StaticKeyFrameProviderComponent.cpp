@@ -8,6 +8,8 @@
 // boost
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
+// ROS2
+#include <ament_index_cpp/get_package_share_directory.hpp>
 // mrg_slam_static_keyframe_provider
 #include <mrg_slam_static_keyframe_provider/StaticKeyFrameProviderComponent.hpp>
 //
@@ -93,19 +95,7 @@ StaticKeyFrameProviderComponent::StaticKeyFrameProviderComponent( const rclcpp::
 void
 StaticKeyFrameProviderComponent::create_static_keyframes()
 {
-    pcl::PointCloud<PointT>::Ptr cloud( new pcl::PointCloud<PointT> );
-    if( pcl::io::loadPCDFile<PointT>( pcd_path, *cloud ) == -1 ) {
-        RCLCPP_ERROR( get_logger(), "Couldn't read file %s\n", pcd_path.c_str() );
-        return;
-    }
-    RCLCPP_INFO_STREAM( get_logger(), "Loaded " << cloud->size() << " data points from " << pcd_path );
-
-    if( !full_map ) {
-        full_map = std::make_shared<sensor_msgs::msg::PointCloud2>();
-    }
-    pcl::toROSMsg( *cloud, *full_map );
-    full_map->header.frame_id = map_frame;
-    full_map->header.stamp    = now();
+    pcl::PointCloud<PointT>::Ptr cloud = load_pcd( pcd_path );
 
     // create a cloud with z = 0.0
     pcl::PointCloud<PointT>::Ptr cloud_xy( new pcl::PointCloud<PointT> );
@@ -127,8 +117,6 @@ StaticKeyFrameProviderComponent::create_static_keyframes()
     for( float x = min_pt.x; x <= max_pt.x; x += grid_step_size ) {
         for( float y = min_pt.y; y <= max_pt.y; y += grid_step_size ) {
             StaticKeyframe::Ptr static_keyframe = std::make_shared<StaticKeyframe>();
-            // static_keyframe->uuid               = uuid_generator();
-            // static_keyframe->uuid_str           = boost::uuids::to_string( static_keyframe->uuid );
 
             PointT center( x, y, 0 );  // Grid center for current patch
 
@@ -154,7 +142,7 @@ StaticKeyFrameProviderComponent::create_static_keyframes()
                 center.z                = z_sum / patch->size();
                 static_keyframe->center = center;
 
-                // Transform the patch to the center point, as if it was recorded at the center point
+                // Transform the patch points to the center, as if it was recorded at the center point
                 for( auto &point : patch->points ) {
                     point.x -= center.x;
                     point.y -= center.y;
@@ -178,6 +166,35 @@ StaticKeyFrameProviderComponent::create_static_keyframes()
             }
         }
     }
+}
+
+pcl::PointCloud<StaticKeyFrameProviderComponent::PointT>::Ptr
+StaticKeyFrameProviderComponent::load_pcd( const std::string &pcd_path )
+{
+    pcl::PointCloud<PointT>::Ptr cloud( new pcl::PointCloud<PointT> );
+
+    bool        path_is_abs  = pcd_path[0] == '/';
+    std::string path_to_open = path_is_abs
+                                   ? pcd_path
+                                   : ament_index_cpp::get_package_share_directory( "mrg_slam_static_keyframe_provider" ) + "/" + pcd_path;
+
+    RCLCPP_INFO_STREAM( get_logger(), "Loading point cloud from " << path_to_open );
+
+    if( pcl::io::loadPCDFile<PointT>( path_to_open, *cloud ) == -1 ) {
+        RCLCPP_ERROR( get_logger(), "Couldn't read file %s\n", path_to_open.c_str() );
+        exit( EXIT_FAILURE );
+        return nullptr;
+    }
+    RCLCPP_INFO_STREAM( get_logger(), "Loaded " << cloud->size() << " data points from " << path_to_open );
+
+    if( !full_map ) {
+        full_map = std::make_shared<sensor_msgs::msg::PointCloud2>();
+    }
+    pcl::toROSMsg( *cloud, *full_map );
+    full_map->header.frame_id = map_frame;
+    full_map->header.stamp    = now();
+
+    return cloud;
 }
 
 std::string
