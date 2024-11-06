@@ -8,7 +8,7 @@ Check out a visualization of how a point cloud is split into circular static key
 
 https://github.com/user-attachments/assets/35a59782-8868-4d7d-bc88-cb941481bfa8
 
-Check out this video demonstrating the static keyframe provider in action:
+Check out this video demonstrating the static keyframe provider supplying keyframes to a robot running mrg_slam:
 
 https://github.com/user-attachments/assets/d110955f-f775-4f9b-99f6-f7415482f745
 
