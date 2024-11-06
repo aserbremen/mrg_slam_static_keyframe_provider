@@ -6,6 +6,5 @@ The static keyframe provider node is a central authority that creates keyframe w
 
 Check out this video demonstrating the static keyframe provider in action:
 
-<iframe src="https://drive.google.com/file/d/1OQlk74DVrMTw5Tp8H13Oq838VyekutZT/preview" width="640" height="480" allow="autoplay"></iframe>
-
+https://github.com/user-attachments/assets/d110955f-f775-4f9b-99f6-f7415482f745
 
