@@ -161,27 +161,11 @@ StaticKeyFrameProviderComponent::create_static_keyframes()
                     point.z -= center.z;
                 }
 
-                std::stringstream ss;
-                ss << std::fixed << std::setprecision( 6 ) << center.x << "," << center.y << "," << patch->size();
-                std::string deterministic_uuid_str = ss.str();
-
-                // Compute SHA-1 hash of the grid center string
-                unsigned char hash[SHA_DIGEST_LENGTH];
-                SHA1( reinterpret_cast<const unsigned char *>( deterministic_uuid_str.c_str() ), deterministic_uuid_str.size(), hash );
-
-                // Convert the hash to a UUID
-                uuid_t uuid;
-                uuid_generate_md5( uuid, UUID_NAMESPACE, reinterpret_cast<const char *>( hash ), SHA_DIGEST_LENGTH );
-
-                // Convert UUID to string
-                char uuid_str[37];
-                uuid_unparse( uuid, uuid_str );
-
-                // Use the UUID for the keyframe
-                static_keyframe->uuid_str = std::string( uuid_str );
+                // Generate a reproducable UUID from the deterministic keyframe information
+                static_keyframe->uuid_str = uuid_str_from_keyframe( x, y, patch->size() );
 
                 RCLCPP_INFO_STREAM( get_logger(), "Created kf " << static_keyframe->uuid_str << " at center (" << x << ", " << y
-                                                                << ") with " << patch->size() << " points and uuid_str " );
+                                                                << ") with " << patch->size() << " points" );
                 static_keyframe->patch = patch;
 
                 sensor_msgs::msg::PointCloud2::SharedPtr patch_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
@@ -194,6 +178,28 @@ StaticKeyFrameProviderComponent::create_static_keyframes()
             }
         }
     }
+}
+
+std::string
+StaticKeyFrameProviderComponent::uuid_str_from_keyframe( double x, double y, size_t num_points )
+{
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision( 6 ) << x << "," << y << "," << num_points;
+    std::string deterministic_uuid_str = ss.str();
+
+    // Compute SHA-1 hash of the grid center string
+    unsigned char hash[SHA_DIGEST_LENGTH];
+    SHA1( reinterpret_cast<const unsigned char *>( deterministic_uuid_str.c_str() ), deterministic_uuid_str.size(), hash );
+
+    // Convert the hash to a UUID
+    uuid_t uuid;
+    uuid_generate_md5( uuid, UUID_NAMESPACE, reinterpret_cast<const char *>( hash ), SHA_DIGEST_LENGTH );
+
+    // Convert UUID to string
+    char uuid_str[37];
+    uuid_unparse( uuid, uuid_str );
+
+    return std::string( uuid_str );
 }
 
 void

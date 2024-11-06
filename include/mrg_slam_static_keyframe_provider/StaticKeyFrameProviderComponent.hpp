@@ -44,6 +44,16 @@ public:
     void create_static_keyframes();
 
     /**
+     * @brief Generates a reproducible UUID from deterministic keyframe information
+     *
+     * @param x x-coordinate of the keyframe center
+     * @param y y-coordinate of the keyframe center
+     * @param num_points number of points in the patch
+     * @return std::string UUID as string
+     */
+    std::string uuid_str_from_keyframe( double x, double y, size_t num_points );
+
+    /**
      * @brief Get the graph gids service call object
      *
      * @param robot_name
@@ -93,6 +103,7 @@ public:
      * @brief  Publishes the center points of the patches and origin of the static map
      */
     void publish_center_points();
+
 
 private:
     std::vector<StaticKeyframe::Ptr> static_keyframes;
