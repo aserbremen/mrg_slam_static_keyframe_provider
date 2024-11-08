@@ -12,3 +12,29 @@ Check out this video demonstrating the static keyframe provider supplying keyfra
 
 https://github.com/user-attachments/assets/d110955f-f775-4f9b-99f6-f7415482f745
 
+## Usage
+
+Setup the parameters of static keyframe provider node in the `config/static_keyframe_provider.yaml` file. The most important parameters are:
+
+- `grid_step_size`: The distance between the centers of two adjacent keyframes placed on a x-y-grid.
+- `keyframe_radius`: The radius of the circular keyframe. 
+- `pcd_path`: The path to the point cloud file in `.pcd` format. 
+- `robot_names`: The names of the robots/namespaces that are running mrg_slam instances.
+- `slam_distance`: The distance from the keyframe at which the keyframe is published to the mrg_slam instances.
+
+To start the static keyframe provider node, run:
+
+```bash
+roslaunch mrg_slam_static_keyframe_provider static_keyframe_provider.launch
+```
+
+## Visualization
+
+You can visualize the full map and the keyframes in RViz by running:
+
+```bash
+# Publish full map on /static_keyframe_provider/map topic
+ros2 service call /static_keyframe_provider/publish_map std_srvs/srv/Trigger 
+# Publish keyframes on /static_keyframe_provider/keyframes topic periodically in a timer
+ros2 service call /static_keyframe_provider/publish_keyframes std_srvs/srv/Trigger
+```
