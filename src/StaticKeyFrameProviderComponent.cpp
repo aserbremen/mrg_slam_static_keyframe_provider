@@ -30,7 +30,7 @@ StaticKeyFrameProviderComponent::StaticKeyFrameProviderComponent( const rclcpp::
 {
     RCLCPP_INFO( get_logger(), "StaticKeyFrameProviderComponent has been started." );
 
-    map_frame       = declare_parameter( "map_frame", "map" );
+    frame_id        = declare_parameter( "frame_id", "map" );
     grid_step_size  = static_cast<float>( declare_parameter( "grid_step_size", 15.0 ) );
     keyframe_radius = static_cast<float>( declare_parameter( "keyframe_radius", -1.0 ) );
     if( keyframe_radius < 0 ) {
@@ -194,7 +194,7 @@ StaticKeyFrameProviderComponent::load_pcd( const std::string &pcd_path )
         full_map = std::make_shared<sensor_msgs::msg::PointCloud2>();
     }
     pcl::toROSMsg( *cloud, *full_map );
-    full_map->header.frame_id = map_frame;
+    full_map->header.frame_id = frame_id;
     full_map->header.stamp    = now();
 
     return cloud;
@@ -385,7 +385,7 @@ StaticKeyFrameProviderComponent::patch_pub_timer_callback()
     sensor_msgs::msg::PointCloud2 msg;
     pcl::toROSMsg( *patch_in_map, msg );
     // Transform the patch back to the map frame
-    msg.header.frame_id = map_frame;
+    msg.header.frame_id = frame_id;
     msg.header.stamp    = now();
     RCLCPP_INFO_STREAM( get_logger(), "Publishing patch " << patch_index + 1 << "/" << static_keyframes.size() << " with " << patch->size()
                                                           << " points in frame_id " << msg.header.frame_id );
@@ -410,7 +410,7 @@ StaticKeyFrameProviderComponent::publish_center_points()
     int                                  counter = 0;
     for( const auto &static_keyframe : static_keyframes ) {
         visualization_msgs::msg::Marker marker;
-        marker.header.frame_id    = map_frame;
+        marker.header.frame_id    = frame_id;
         marker.header.stamp       = now();
         marker.ns                 = "patch_centers";
         marker.id                 = counter++;
@@ -434,7 +434,7 @@ StaticKeyFrameProviderComponent::publish_center_points()
     }
     // add a fat Sphere marker at the origin
     visualization_msgs::msg::Marker origin_marker;
-    origin_marker.header.frame_id    = map_frame;
+    origin_marker.header.frame_id    = frame_id;
     origin_marker.header.stamp       = now();
     origin_marker.ns                 = "patch_centers";
     origin_marker.id                 = counter++;

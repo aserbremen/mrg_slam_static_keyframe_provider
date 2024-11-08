@@ -17,7 +17,8 @@ https://github.com/user-attachments/assets/d110955f-f775-4f9b-99f6-f7415482f745
 Setup the parameters of static keyframe provider node in the `config/static_keyframe_provider.yaml` file. The most important parameters are:
 
 - `grid_step_size`: The distance between the centers of two adjacent keyframes placed on a x-y-grid.
-- `keyframe_radius`: The radius of the circular keyframe. 
+- `keyframe_radius`: The radius of the circular keyframe.
+- `frame_id`: The frame id of the point cloud.
 - `pcd_path`: The path to the point cloud file in `.pcd` format. 
 - `robot_names`: The names of the robots/namespaces that are running mrg_slam instances.
 - `slam_distance`: The distance from the keyframe at which the keyframe is published to the mrg_slam instances.
