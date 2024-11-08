@@ -30,10 +30,13 @@ StaticKeyFrameProviderComponent::StaticKeyFrameProviderComponent( const rclcpp::
 {
     RCLCPP_INFO( get_logger(), "StaticKeyFrameProviderComponent has been started." );
 
-    map_frame      = declare_parameter( "map_frame", "map" );
-    grid_step_size = static_cast<float>( declare_parameter( "grid_step_size", 15.0 ) );
-    // Calculate the patch radius based on the grid step size, so that the circular patches intersect diagonally at one point
-    patch_radius          = static_cast<float>( grid_step_size / std::sqrt( 2.0 ) );
+    map_frame       = declare_parameter( "map_frame", "map" );
+    grid_step_size  = static_cast<float>( declare_parameter( "grid_step_size", 15.0 ) );
+    keyframe_radius = static_cast<float>( declare_parameter( "keyframe_radius", -1.0 ) );
+    if( keyframe_radius < 0 ) {
+        // Set the keyframe radius to the diagonal of the grid cell
+        keyframe_radius = static_cast<float>( grid_step_size / std::sqrt( 2.0 ) );
+    }
     pcd_path              = declare_parameter( "pcd_path", "/path/to/pointcloud.pcd" );
     timer_frequency       = declare_parameter( "timer_frequency", 3.0 );
     robot_names           = declare_parameter( "robot_names", std::vector<std::string>{ "atlas", "bestla" } );
@@ -120,11 +123,11 @@ StaticKeyFrameProviderComponent::create_static_keyframes()
 
             PointT center( x, y, 0 );  // Grid center for current patch
 
-            // Search for points within the patch_radius from the current grid center
+            // Search for points within the keyframe_radius from the current grid center
             std::vector<int>   point_indices;
             std::vector<float> point_distances;
 
-            if( kdtree.radiusSearch( center, patch_radius, point_indices, point_distances ) > 0 ) {
+            if( kdtree.radiusSearch( center, keyframe_radius, point_indices, point_distances ) > 0 ) {
                 // Create a new cloud for the patch
                 pcl::PointCloud<PointT>::Ptr patch( new pcl::PointCloud<PointT> );
 

@@ -120,7 +120,7 @@ private:
     // ROS2 params
     std::string              map_frame;
     float                    grid_step_size;
-    float                    patch_radius;
+    float                    keyframe_radius;
     std::string              pcd_path;
     std::vector<std::string> robot_names;
     float                    slam_distance, squared_slam_distance;

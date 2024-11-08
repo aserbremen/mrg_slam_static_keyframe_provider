@@ -7,9 +7,9 @@
     create_own_container: false
     # x-y step size of the grid in which the static map patches are provided
     grid_step_size: 10.0
-    # the default patch_radius = grid_step_size / sqrt(2), which means that the outer circle of a patch tangentially diagonally touch the neighboring patches
-    # set this value yourself if you want to have a different patch_radius
-    # patch_radius: 10.0 
+    # the default keyframe_radius = grid_step_size / sqrt(2), which means that the outer circle of a patch tangentially diagonally touch the neighboring patches
+    # if this is set to a value > 0, the keyframe_radius will be set to this value to provide a larger or smaller overlap between the patches
+    keyframe_radius: -1.0
     
     # path to the pcd file which contains the static map
     # if the path is absolute (starting with /), the file will be loaded from the specified path
