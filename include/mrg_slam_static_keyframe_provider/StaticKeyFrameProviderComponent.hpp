@@ -19,7 +19,7 @@
 #include <mrg_slam_msgs/msg/key_frame_ros.hpp>
 #include <mrg_slam_msgs/msg/pose_with_name.hpp>
 #include <mrg_slam_msgs/srv/add_static_key_frames.hpp>
-#include <mrg_slam_msgs/srv/get_graph_gids.hpp>
+#include <mrg_slam_msgs/srv/get_graph_uuids.hpp>
 
 namespace mrg_slam {
 
@@ -66,9 +66,9 @@ public:
      * @brief Get the graph gids service call object
      *
      * @param robot_name
-     * @return mrg_slam_msgs::srv::GetGraphGids::Response::SharedPtr Containing the already existing keyframes
+     * @return mrg_slam_msgs::srv::GetGraphUuids::Response::SharedPtr Containing the already existing keyframes
      */
-    mrg_slam_msgs::srv::GetGraphGids::Response::SharedPtr get_graph_gids_service_call( const std::string &robot_name );
+    mrg_slam_msgs::srv::GetGraphUuids::Response::SharedPtr get_graph_gids_service_call( const std::string &robot_name );
 
     /**
      * @brief Adds the static
@@ -139,7 +139,7 @@ private:
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub;
 
     // ROS2 service clients
-    std::unordered_map<std::string, rclcpp::Client<mrg_slam_msgs::srv::GetGraphGids>::SharedPtr>       get_graph_gids_clients;
+    std::unordered_map<std::string, rclcpp::Client<mrg_slam_msgs::srv::GetGraphUuids>::SharedPtr>      get_graph_uuids_clients;
     std::unordered_map<std::string, rclcpp::Client<mrg_slam_msgs::srv::AddStaticKeyFrames>::SharedPtr> add_static_keyframes_clients;
 
     // ROS2 service servers

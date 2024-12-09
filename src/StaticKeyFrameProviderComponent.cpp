@@ -67,10 +67,10 @@ StaticKeyFrameProviderComponent::StaticKeyFrameProviderComponent( const rclcpp::
 
     // Service clients
     for( const auto &robot_name : robot_names ) {
-        std::string get_graph_gids_service_name = "/" + robot_name + "/mrg_slam/get_graph_gids";
-        get_graph_gids_clients[robot_name]      = create_client<mrg_slam_msgs::srv::GetGraphGids>( get_graph_gids_service_name,
-                                                                                                   rmw_qos_profile_services_default,
-                                                                                                   reentrant_callback_group1 );
+        std::string get_graph_uuids_service_name = "/" + robot_name + "/mrg_slam/get_graph_uuids";
+        get_graph_uuids_clients[robot_name]      = create_client<mrg_slam_msgs::srv::GetGraphUuids>( get_graph_uuids_service_name,
+                                                                                                     rmw_qos_profile_services_default,
+                                                                                                     reentrant_callback_group1 );
 
         std::string add_static_keyframes_service_name = "/" + robot_name + "/mrg_slam/add_static_keyframes";
         add_static_keyframes_clients[robot_name] = create_client<mrg_slam_msgs::srv::AddStaticKeyFrames>( add_static_keyframes_service_name,
@@ -225,8 +225,8 @@ StaticKeyFrameProviderComponent::uuid_str_from_keyframe( double x, double y, siz
 void
 StaticKeyFrameProviderComponent::slam_pose_broadcast_callback( mrg_slam_msgs::msg::PoseWithName::ConstSharedPtr slam_pose_msg )
 {
-    mrg_slam_msgs::srv::GetGraphGids::Response::SharedPtr gids   = get_graph_gids_service_call( slam_pose_msg->robot_name );
-    auto                                                  logger = rclcpp::get_logger( "slam_pose_broadcast_callback" );
+    mrg_slam_msgs::srv::GetGraphUuids::Response::SharedPtr gids   = get_graph_gids_service_call( slam_pose_msg->robot_name );
+    auto                                                   logger = rclcpp::get_logger( "slam_pose_broadcast_callback" );
     if( !gids ) {
         RCLCPP_ERROR_STREAM( logger, "Failed to get graph gids for robot " << slam_pose_msg->robot_name );
         return;
@@ -259,22 +259,22 @@ StaticKeyFrameProviderComponent::slam_pose_broadcast_callback( mrg_slam_msgs::ms
     }
 }
 
-mrg_slam_msgs::srv::GetGraphGids::Response::SharedPtr
+mrg_slam_msgs::srv::GetGraphUuids::Response::SharedPtr
 StaticKeyFrameProviderComponent::get_graph_gids_service_call( const std::string &robot_name )
 {
     // Check if the service is available
-    while( !get_graph_gids_clients[robot_name]->wait_for_service( std::chrono::seconds( 2 ) ) ) {
+    while( !get_graph_uuids_clients[robot_name]->wait_for_service( std::chrono::seconds( 2 ) ) ) {
         if( !rclcpp::ok() ) {
             return nullptr;
         }
         RCLCPP_WARN_STREAM_THROTTLE( get_logger(), *get_clock(), 1000,
-                                     "Waiting for service " << get_graph_gids_clients[robot_name]->get_service_name() << " to appear..." );
+                                     "Waiting for service " << get_graph_uuids_clients[robot_name]->get_service_name() << " to appear..." );
     }
 
     RCLCPP_INFO_STREAM( get_logger(), "Requesting graph gids for robot " << robot_name );
-    mrg_slam_msgs::srv::GetGraphGids::Request::SharedPtr req = std::make_shared<mrg_slam_msgs::srv::GetGraphGids::Request>();
+    mrg_slam_msgs::srv::GetGraphUuids::Request::SharedPtr req = std::make_shared<mrg_slam_msgs::srv::GetGraphUuids::Request>();
 
-    auto               result_future = get_graph_gids_clients[robot_name]->async_send_request( req );
+    auto               result_future = get_graph_uuids_clients[robot_name]->async_send_request( req );
     std::future_status status        = result_future.wait_for( std::chrono::seconds( 20 ) );
 
     if( status == std::future_status::timeout ) {
@@ -319,6 +319,7 @@ StaticKeyFrameProviderComponent::add_static_keyframes_service_call( mrg_slam_msg
         kf_ros.odom_counter    = -1;
         kf_ros.first_keyframe  = false;
         kf_ros.static_keyframe = true;
+        kf_ros.slam_uuid_str   = kf->uuid_str;  // the slam uuid is the same as the static keyframe uuid
         kf_ros.accum_distance  = -1.0;
         kf_ros.estimate        = patch_center;
         kf_ros.cloud           = *kf->patch_msg;

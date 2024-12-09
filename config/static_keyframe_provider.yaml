@@ -6,7 +6,7 @@
     # when this is set to false, the static_keyframe_provider_node will be added to an existing container  
     create_own_container: false
     # x-y step size of the grid in which the static map keyframes are provided
-    grid_step_size: 10.0
+    grid_step_size: 12.5
     # the default keyframe_radius = grid_step_size / sqrt(2), which means that the outer circle of a patch tangentially diagonally touch the neighboring keyframes
     # if this is set to a value > 0, the keyframe_radius will be set to this value to provide a larger or smaller overlap between the keyframes
     keyframe_radius: -1.0
@@ -21,7 +21,7 @@
     # list of robots performing SLAM for providing static map keyframes in their vicinity, respective callbacks/services will be registered and called
     robot_names: ["atlas", "bestla"]
     # distance from robot to center of the static keyframe which are going to be provided
-    slam_distance: 5.0 
+    slam_distance: 10.0 
 
     # the frequency at which the static map provider publishes the static map keyframes if service is called
     timer_frequency: 3.0
