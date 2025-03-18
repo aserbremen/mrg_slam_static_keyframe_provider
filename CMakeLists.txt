@@ -15,6 +15,7 @@ message(STATUS "PCL_DEFINITIONS:" ${PCL_DEFINITIONS})
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(std_srvs REQUIRED)
@@ -31,6 +32,7 @@ add_library(static_keyframe_provider_component SHARED
   src/StaticKeyFrameProviderComponent.cpp
 )
 ament_target_dependencies(static_keyframe_provider_component 
+  ament_index_cpp
   rclcpp
   rclcpp_components
   std_srvs
