@@ -26,7 +26,7 @@ Setup the parameters of static keyframe provider node in the `config/static_keyf
 To start the static keyframe provider node, run:
 
 ```bash
-roslaunch mrg_slam_static_keyframe_provider static_keyframe_provider.launch.py
+ros2 launch mrg_slam_static_keyframe_provider static_keyframe_provider.launch.py
 ```
 
 ## Visualization
