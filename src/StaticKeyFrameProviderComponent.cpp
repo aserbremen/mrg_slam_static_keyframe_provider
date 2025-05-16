@@ -456,6 +456,34 @@ StaticKeyFrameProviderComponent::publish_center_points()
     origin_marker.color.g            = 1.0;
     origin_marker.color.b            = 0.0;
     markers.markers.push_back( origin_marker );
+    // add a circular marker for each patch with the patch radius
+    for( const auto &static_keyframe : static_keyframes ) {
+        visualization_msgs::msg::Marker circle_marker;
+        circle_marker.header.frame_id    = frame_id;
+        circle_marker.header.stamp       = now();
+        circle_marker.ns                 = "patch_centers";
+        circle_marker.id                 = counter++;
+        circle_marker.type               = visualization_msgs::msg::Marker::LINE_STRIP;
+        circle_marker.action             = visualization_msgs::msg::Marker::ADD;
+        circle_marker.pose.orientation.w = 1.0;
+        circle_marker.scale.x            = 0.1;  // thickness
+        circle_marker.color.r            = 1.0;
+        circle_marker.color.a            = 0.8;
+
+        double                 radius     = keyframe_radius;
+        const Eigen::Vector3f &p_center   = static_keyframe->center.getVector3fMap();
+        int                    num_points = 50;
+        for( int i = 0; i <= num_points; i++ ) {
+            double                    angle = 2.0 * M_PI * i / num_points;
+            geometry_msgs::msg::Point p;
+            p.x = p_center.x() + radius * std::cos( angle );
+            p.y = p_center.y() + radius * std::sin( angle );
+            p.z = p_center.z();
+            circle_marker.points.push_back( p );
+        }
+
+        markers.markers.push_back( circle_marker );
+    }
 
     marker_pub->publish( markers );
     RCLCPP_INFO_STREAM( get_logger(), "Published " << static_keyframes.size() << " center points and origin" );
