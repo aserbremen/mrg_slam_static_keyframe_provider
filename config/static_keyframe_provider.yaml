@@ -21,7 +21,11 @@
     # list of robots performing SLAM for providing static map keyframes in their vicinity, respective callbacks/services will be registered and called
     robot_names: ["atlas", "bestla"]
     # distance from robot to center of the static keyframe which are going to be provided
-    slam_distance: 10.0 
+    slam_distance: 20.0 
+
+    # voxel grid filter
+    enable_voxel_grid_filter: true
+    voxel_grid_resolution: 0.3
 
     # the frequency at which the static map provider publishes the static map keyframes if service is called
     timer_frequency: 3.0

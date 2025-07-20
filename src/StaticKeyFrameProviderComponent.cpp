@@ -1,6 +1,7 @@
 // pcl
 #include <pcl/common/common.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/point_types.h>
@@ -37,10 +38,13 @@ StaticKeyFrameProviderComponent::StaticKeyFrameProviderComponent( const rclcpp::
         // Set the keyframe radius to the diagonal of the grid cell
         keyframe_radius = static_cast<float>( grid_step_size / std::sqrt( 2.0 ) );
     }
-    pcd_path              = declare_parameter( "pcd_path", "/path/to/pointcloud.pcd" );
-    timer_frequency       = declare_parameter( "timer_frequency", 3.0 );
-    robot_names           = declare_parameter( "robot_names", std::vector<std::string>{ "atlas", "bestla" } );
-    slam_distance         = static_cast<float>( declare_parameter( "slam_distance", 30.0 ) );
+    pcd_path                 = declare_parameter( "pcd_path", "/path/to/pointcloud.pcd" );
+    timer_frequency          = declare_parameter( "timer_frequency", 3.0 );
+    robot_names              = declare_parameter( "robot_names", std::vector<std::string>{ "atlas", "bestla" } );
+    slam_distance            = static_cast<float>( declare_parameter( "slam_distance", 30.0 ) );
+    enable_voxel_grid_filter = declare_parameter( "enable_voxel_grid_filter", true );
+    voxel_grid_resolution    = static_cast<float>( declare_parameter( "voxel_grid_resolution", 0.1 ) );
+
     squared_slam_distance = slam_distance * slam_distance;
 
     // Callback groups
@@ -51,14 +55,6 @@ StaticKeyFrameProviderComponent::StaticKeyFrameProviderComponent( const rclcpp::
     rclcpp::PublisherOptions pub_options;
     pub_options.callback_group = reentrant_callback_group2;
 
-    // Subscribers
-    // Use a reentrant callbackgroup for odom_broadcast_sub to avoid deadlock, enabling the get graph gids service to be called from the
-    // same thread as the slam_pose_broadcast_callback
-    rclcpp::SubscriptionOptions sub_options;
-    sub_options.callback_group = reentrant_callback_group1;
-    slam_pose_broadcast_sub    = create_subscription<mrg_slam_msgs::msg::PoseWithName>(
-        "/mrg_slam/slam_pose_broadcast", rclcpp::QoS( 100 ),
-        std::bind( &StaticKeyFrameProviderComponent::slam_pose_broadcast_callback, this, std::placeholders::_1 ), sub_options );
 
     // Publishers
     keyframes_pub = create_publisher<sensor_msgs::msg::PointCloud2>( "/static_keyframe_provider/keyframes", 10, pub_options );
@@ -99,6 +95,18 @@ void
 StaticKeyFrameProviderComponent::create_static_keyframes()
 {
     pcl::PointCloud<PointT>::Ptr cloud = load_pcd( pcd_path );
+
+    if( enable_voxel_grid_filter ) {
+        // Apply voxel grid filter to downsample the point cloud
+        pcl::VoxelGrid<PointT> voxel_grid;
+        voxel_grid.setInputCloud( cloud );
+        voxel_grid.setLeafSize( voxel_grid_resolution, voxel_grid_resolution, voxel_grid_resolution );
+        pcl::PointCloud<PointT>::Ptr filtered_cloud( new pcl::PointCloud<PointT> );
+        voxel_grid.filter( *filtered_cloud );
+        cloud = filtered_cloud;
+        RCLCPP_INFO_STREAM( get_logger(), "Applied voxel grid filter with resolution: " << voxel_grid_resolution << ", resulting in "
+                                                                                        << cloud->size() << " points" );
+    }
 
     // create a cloud with z = 0.0
     pcl::PointCloud<PointT>::Ptr cloud_xy( new pcl::PointCloud<PointT> );
@@ -169,6 +177,16 @@ StaticKeyFrameProviderComponent::create_static_keyframes()
             }
         }
     }
+
+    // Subscribers
+    // Use a reentrant callbackgroup for odom_broadcast_sub to avoid deadlock, enabling the get graph gids service to be called from the
+    // same thread as the slam_pose_broadcast_callback
+    rclcpp::SubscriptionOptions sub_options;
+    sub_options.callback_group = reentrant_callback_group1;
+    slam_pose_broadcast_sub    = create_subscription<mrg_slam_msgs::msg::PoseWithName>(
+        "/mrg_slam/slam_pose_broadcast", rclcpp::QoS( 100 ),
+        std::bind( &StaticKeyFrameProviderComponent::slam_pose_broadcast_callback, this, std::placeholders::_1 ), sub_options );
+    RCLCPP_INFO_STREAM( get_logger(), "Created slam pose_broadcast_sub" );
 }
 
 pcl::PointCloud<StaticKeyFrameProviderComponent::PointT>::Ptr
@@ -243,6 +261,7 @@ StaticKeyFrameProviderComponent::slam_pose_broadcast_callback( mrg_slam_msgs::ms
         // Add the static keyframes that are not in the graph and are within the set slam distance
         if( std::find( gids->keyframe_uuid_strs.begin(), gids->keyframe_uuid_strs.end(), kf->uuid_str ) == gids->keyframe_uuid_strs.end()
             && ( slam_pose.getVector3fMap() - kf->center.getVector3fMap() ).head( 2 ).squaredNorm() < squared_slam_distance ) {
+            kf->patch_msg->header.frame_id = slam_pose_msg->robot_name + "/map";
             static_keyframes_to_add.push_back( kf );
         }
     }
@@ -275,7 +294,7 @@ StaticKeyFrameProviderComponent::get_graph_gids_service_call( const std::string 
     mrg_slam_msgs::srv::GetGraphUuids::Request::SharedPtr req = std::make_shared<mrg_slam_msgs::srv::GetGraphUuids::Request>();
 
     auto               result_future = get_graph_uuids_clients[robot_name]->async_send_request( req );
-    std::future_status status        = result_future.wait_for( std::chrono::seconds( 20 ) );
+    std::future_status status        = result_future.wait_for( std::chrono::seconds( 1 ) );
 
     if( status == std::future_status::timeout ) {
         RCLCPP_WARN_STREAM( get_logger(), "Request graph gids service call to robot " << robot_name << " timed out" );

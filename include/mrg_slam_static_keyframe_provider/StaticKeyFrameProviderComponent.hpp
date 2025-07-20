@@ -124,6 +124,8 @@ private:
     std::string              pcd_path;
     std::vector<std::string> robot_names;
     float                    slam_distance, squared_slam_distance;
+    bool                     enable_voxel_grid_filter;
+    float                    voxel_grid_resolution;
 
     // unique id generators
     boost::uuids::random_generator_pure uuid_generator;
